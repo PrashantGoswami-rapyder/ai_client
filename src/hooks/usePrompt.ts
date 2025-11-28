@@ -1,11 +1,5 @@
 import { useState, useRef } from 'react'
-
-export interface PromptConfig {
-  model: string
-  temperature: number
-  maxTokens: number
-  attachments: File[]
-}
+import type { PromptConfig } from '../types'
 
 export interface UsePromptReturn {
   input: string

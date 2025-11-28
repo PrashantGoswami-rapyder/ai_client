@@ -1,13 +1,41 @@
 import { usePrompt } from '../hooks/usePrompt'
-import type { PromptConfig } from '../hooks/usePrompt'
+import { useApp } from '../hooks/useApp'
+import { useToast } from '../Components/Toast'
+import { sendPromptMock } from '../services/api'
 import ModelSelector from '../Components/ModelSelector'
 import AttachmentUpload from '../Components/AttachmentUpload'
+import PlaceholderButtons from '../Components/PlaceholderButtons'
 
-interface PromptInputProps {
-  onSubmit?: (prompt: string, config: PromptConfig) => Promise<void>
-}
+const PromptInput = () => {
+  const { selectedChat, addChat, addMessage } = useApp()
+  const { showToast } = useToast()
 
-const PromptInput = ({ onSubmit }: PromptInputProps) => {
+  const handleSubmit = async (prompt: string, config: any) => {
+    let currentChatId = selectedChat?.id
+    
+    if (!currentChatId) {
+      const newChat = addChat()
+      currentChatId = newChat.id
+      addMessage(newChat.id, { role: 'user', content: prompt, attachments: config.attachments })
+    } else {
+      addMessage(currentChatId, { role: 'user', content: prompt, attachments: config.attachments })
+    }
+
+    if (!currentChatId) return
+
+    let assistantResponse = ''
+    try {
+      await sendPromptMock(prompt, config, (chunk) => {
+        assistantResponse += chunk
+      })
+      
+      addMessage(currentChatId, { role: 'assistant', content: assistantResponse })
+      showToast('Response received', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to get response', 'error')
+    }
+  }
+
   const {
     input,
     setInput,
@@ -19,11 +47,23 @@ const PromptInput = ({ onSubmit }: PromptInputProps) => {
     handleKeyPress,
     handleAttachment,
     removeAttachment
-  } = usePrompt(onSubmit)
+  } = usePrompt(handleSubmit)
+
+  const handlePlaceholderSelect = (prompt: string) => {
+    setInput(prompt)
+    inputRef.current?.focus()
+  }
 
   return (
     <div className="flex items-center justify-center h-full bg-white px-4">
       <div className="w-full max-w-4xl">
+        {/* Placeholder Buttons - Show when input is empty */}
+        {!input.trim() && (
+          <div className="mb-8">
+            <PlaceholderButtons onSelect={handlePlaceholderSelect} />
+          </div>
+        )}
+
         {/* Prompt Input */}
         <div className="flex items-end gap-3 bg-white rounded-2xl border-2 border-gray-300 shadow-lg focus-within:border-blue-500 focus-within:shadow-xl transition-all">
           <div className="flex-1 flex flex-col">
@@ -89,4 +129,3 @@ const PromptInput = ({ onSubmit }: PromptInputProps) => {
 }
 
 export default PromptInput
-
